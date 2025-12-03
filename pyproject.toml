@@ -20,7 +20,7 @@ dependencies = [
     "httpx>=0.24",
     "django-cors-headers>=4.1",
     "nltk>=3.9",
-    "cryptography>=43.0",
+    "cryptography>=40.0.1",
 ]
 keywords = ["audit", "django", "compliance", "logging"]
 
