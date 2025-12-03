@@ -1,0 +1,49 @@
+{% load audit_ui %}
+{% if events %}
+{% for event in events %}
+<div
+    class="rounded-2xl bg-slate-900/60 border border-white/10 p-6 shadow-lg hover:shadow-xl transition shadow-slate-950/40">
+    <article class="audit-event" id="event-{{ event.id }}">
+        <header class="event-header">
+            <div class="event-heading">
+                <span class="event-badge">{{ event.model }}</span>
+                <span class="event-object">#{{ event.object_id }}</span>
+            </div>
+            <div class="event-time">
+                <time datetime="{{ event.timestamp|date:'c' }}">{{ event.timestamp|date:"M d, Y · H:i" }}</time>
+                <span class="time-human">{{ event.timestamp_human }}</span>
+            </div>
+        </header>
+        <p class="event-summary">{{ event.summary|rich_summary }}</p>
+        <div class="chip-row">
+            <span class="chip chip-type">{{ event.event_type|title }}</span>
+            <span class="chip chip-actor">{{ event.actor }}</span>
+        </div>
+        {% if event.diff_items %}
+        <table class="diff-table" aria-label="Field changes">
+            <thead>
+                <tr>
+                    <th>Field</th>
+                    <th>Before</th>
+                    <th>After</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for change in event.diff_items %}
+                <tr>
+                    <th scope="row">{{ change.field }}</th>
+                    <td>{{ change.before }}</td>
+                    <td>{{ change.after }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="diff-empty">No field-level differences captured.</p>
+        {% endif %}
+    </article>
+</div>
+{% endfor %}
+{% else %}
+<div class="placeholder">No audit events yet.</div>
+{% endif %}

@@ -1,0 +1,151 @@
+<div class="space-y-6">
+
+    {% for event in events %}
+
+    <div class="rounded-2xl bg-slate-900/60 border border-white/10 p-6 shadow-lg">
+
+        <!-- HEADER -->
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+                <h3 class="text-lg font-semibold text-slate-100">{{ event.model }}</h3>
+                <p class="text-sm text-slate-400">Object ID: <span class="text-slate-300">{{ event.object_id }}</span>
+                </p>
+            </div>
+
+            <div class="text-right space-y-1">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium
+                    {% if event.event_type == 'created' %}
+                        bg-green-600/20 text-green-300
+                    {% elif event.event_type == 'deleted' %}
+                        bg-rose-600/20 text-rose-300
+                    {% else %}
+                        bg-yellow-600/20 text-yellow-300
+                    {% endif %}
+                    ">
+                    <i class="ph-pencil-line text-xs mr-1"></i>
+                    {{ event.event_type|capfirst }}
+                </span>
+
+                <p class="text-xs text-slate-400">
+                    <time datetime="{{ event.timestamp|date:'c' }}">{{ event.timestamp|date:"M d, Y · H:i" }}</time>
+                    <span class="time-human">{{ event.timestamp_human }}</span>
+                </p>
+
+                {% if event.actor %}
+                <p class="text-xs text-slate-500">by <span class="text-slate-300">{{ event.actor }}</span></p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- SUMMARY -->
+        {% if event.summary %}
+        <div class="mt-4 rounded-xl bg-slate-800/40 border border-white/10 p-4">
+            <h4 class="text-sm font-semibold text-slate-200 mb-2">Summary</h4>
+            <p class="text-sm text-slate-300 whitespace-pre-line">{{ event.summary|safe }}</p>
+        </div>
+        {% endif %}
+
+        <!-- SEPARATOR -->
+        <div class="my-5 border-t border-white/10"></div>
+
+        <!-- DIFF SECTIONS -->
+        <div class="space-y-6">
+
+            {% for diff in event.diff_items %}
+
+            <details class="group rounded-xl bg-slate-800/40 border border-white/10">
+                <summary class="cursor-pointer flex items-center justify-between px-4 py-3 list-none">
+                    <span class="text-sm font-semibold text-slate-200">
+                        {{ diff.field|capfirst }}
+                        <span class="text-xs text-slate-400 ml-1">({{ diff.field_type }})</span>
+                    </span>
+
+                    <i class="ph-caret-down text-slate-400 group-open:rotate-180 transition-transform"></i>
+                </summary>
+
+                <div class="px-4 pb-4 pt-1 space-y-4">
+
+                    <!-- ------------------------------------ -->
+                    <!-- SIMPLE FIELD DIFF -->
+                    <!-- ------------------------------------ -->
+                    {% if diff.field_type != "JSONField" %}
+                    <div class="rounded-lg border border-white/10">
+
+                        <table class="w-full text-sm">
+                            <thead class="bg-slate-700/40 text-slate-300">
+                                <tr>
+                                    <th class="px-3 py-2 text-left text-xs font-medium uppercase">Before</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium uppercase">After</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="divide-x divide-white/10">
+                                    <td class="px-3 py-3 text-rose-300">{{ diff.before }}</td>
+                                    <td class="px-3 py-3 text-green-300">{{ diff.after }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+
+                    <!-- ------------------------------------ -->
+                    <!-- JSON FIELD DIFF (ADVANCED MODE) -->
+                    <!-- ------------------------------------ -->
+                    {% if diff.field_type == "JSONField" %}
+                    <div class="grid md:grid-cols-2 gap-4">
+
+                        <!-- Before JSON -->
+                        <div class="rounded-xl bg-slate-900/70 border border-white/10 p-4">
+                            <p class="text-xs font-medium text-slate-400 mb-2">Before</p>
+                            <pre class="text-xs text-slate-300 whitespace-pre-wrap">{{ diff.before }}</pre>
+                        </div>
+
+                        <!-- After JSON -->
+                        <div class="rounded-xl bg-slate-900/70 border border-white/10 p-4">
+                            <p class="text-xs font-medium text-slate-400 mb-2">After</p>
+                            <pre class="text-xs text-green-300 whitespace-pre-wrap">{{ diff.after }}</pre>
+                        </div>
+
+                    </div>
+
+                    <!-- JSON DIFF HIGHLIGHTING -->
+                    <div class="space-y-2">
+
+                        {% comment %} Determine added/removed/updated keys {% endcomment %}
+                        {% for key, after_val in diff.after.items %}
+                        {% if not diff.before.key %}
+                        <div class="text-xs text-green-300">
+                            <i class="ph-plus-circle"></i> <span class="font-semibold">{{ key }}</span> added: {{
+                            after_val }}
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+
+                        {% for key, before_val in diff.before.items %}
+                        {% if not diff.after.key %}
+                        <div class="text-xs text-rose-300">
+                            <i class="ph-minus-circle"></i> <span class="font-semibold">{{ key }}</span> removed
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+
+                        {% for key, before_val in diff.before.items %}
+                        {% if diff.after.key and diff.after.key != before_val %}
+                        <div class="text-xs text-yellow-300">
+                            <i class="ph-arrow-clockwise"></i> <span class="font-semibold">{{ key }}</span> changed
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+
+                    </div>
+                    {% endif %}
+
+                </div>
+            </details>
+
+            {% endfor %}
+        </div>
+
+    </div>
+    {% endfor %}
+</div>
