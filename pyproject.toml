@@ -7,11 +7,11 @@ name = "tiger_audit_trail"
 version = "0.1.0"
 description = "Enterprise audit trail for Django with diffing and async delivery"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 authors = [{name = "AJAY", email = "ajay@tigerlab.com"}]
 license = {text = "MIT"}
 dependencies = [
-    "Django>=5.2",
+    "Django>=4.2",
     "djangorestframework>=3.14",
     "celery>=5.3",
     "boto3>=1.28",
@@ -20,12 +20,12 @@ dependencies = [
     "httpx>=0.24",
     "django-cors-headers>=4.1",
     "nltk>=3.9",
-    "cryptography>=43.0",
+    "cryptography>=40.0.1",
 ]
 keywords = ["audit", "django", "compliance", "logging"]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-django", "moto", "ruff", "black", "sphinx", "furo", "sphinx-autodoc-typehints", "myst-parser", "sphinx-copybutton", "sphinx-rtd-theme", "sphinx-autobuild"]
+dev = ["pytest", "pytest-django", "moto", "ruff", "black", "sphinx", "furo", "sphinx-autodoc-typehints", "myst-parser", "sphinx-copybutton", "sphinx-rtd-theme", "sphinx-autobuild", "isort>=5,<6"]
 
 [tool.setuptools]
 include-package-data = true
