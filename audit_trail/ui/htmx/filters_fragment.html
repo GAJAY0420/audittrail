@@ -1,0 +1,12 @@
+<form class="audit-filter" hx-get="{% url 'audit-timeline-feed' %}" hx-target="#timeline-feed-content"
+    hx-swap="innerHTML">
+    <label>
+        Object ID
+        <input type="text" name="object_id" />
+    </label>
+    <label>
+        Actor
+        <input type="text" name="actor" />
+    </label>
+    <button type="submit">Filter</button>
+</form>

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Trail Login{% endblock %}
+
+{% block content %}
+<section class="auth-shell">
+    <div class="auth-hero">
+        <h1>{{ hero_title }} <span class="version-pill">v{{ version }}</span></h1>
+        <p>{{ tagline }}</p>
+    </div>
+    <div class="auth-card" id="login-card">
+        <h2>Sign in to continue</h2>
+        <form method="post" action="{% url 'audit-login' %}" hx-post="{% url 'audit-login' %}" hx-target="#login-card"
+            hx-swap="outerHTML" class="auth-form">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="form-errors">
+                {% for error in form.non_field_errors %}
+                <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <label>
+                <span>Username</span>
+                {{ form.username }}
+            </label>
+            <label>
+                <span>Password</span>
+                {{ form.password }}
+            </label>
+            <button type="submit" class="btn-primary">Enter Timeline</button>
+        </form>
+    </div>
+</section>
+{% endblock %}

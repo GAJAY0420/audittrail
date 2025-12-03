@@ -1,0 +1,9 @@
+{% for event in events %}
+<div class="audit-event">
+    <time datetime="{{ event.timestamp }}">{{ event.timestamp }}</time>
+    <p>{{ event.summary }}</p>
+    <pre class="audit-diff">{{ event.diff }}</pre>
+</div>
+{% empty %}
+<p>No events yet.</p>
+{% endfor %}

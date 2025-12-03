@@ -1,0 +1,152 @@
+Configuration
+=============
+
+Registry
+--------
+
+.. code-block:: python
+
+   AUDITTRAIL_MODELS = {
+       "policies.Policy": {
+           "fields": ["status", "premium"],
+           "sensitive": ["ssn"],
+           "m2m": ["risk_classes"],
+       }
+   }
+
+Summarizers
+-----------
+
+``AUDITTRAIL_SUMMARIZER`` accepts ``grammar``, ``nltk``, ``multilang``, or ``llm``.
+Each engine now consumes a structured diff payload and outputs human-readable
+sentences (no raw JSON).  For example, the grammar engine produces sentences like
+``Status (CharField) changed from pending to approved`` or ``Tags updated: added
+Critical, removed Legacy``.
+
+When ``AUDITTRAIL_SUMMARIZER="llm"`` you can choose among several providers:
+
+.. list-table::
+     :header-rows: 1
+
+     * - Provider
+         - Required settings
+     * - HTTP (custom)
+         - ``AUDITTRAIL_LLM_ENDPOINT`` + ``AUDITTRAIL_LLM_TOKEN``
+     * - OpenAI
+         - ``AUDITTRAIL_LLM_PROVIDER=openai``, ``AUDITTRAIL_LLM_MODEL=gpt-4o-mini``, ``AUDITTRAIL_LLM_TOKEN=<OpenAI key>``
+     * - Claude (Anthropic)
+         - ``AUDITTRAIL_LLM_PROVIDER=claude``, ``AUDITTRAIL_LLM_MODEL=claude-3-haiku-20240307``, ``AUDITTRAIL_LLM_TOKEN=<Anthropic key>``
+     * - Gemini
+         - ``AUDITTRAIL_LLM_PROVIDER=gemini``, ``AUDITTRAIL_LLM_MODEL=gemini-1.5-flash``, ``AUDITTRAIL_LLM_TOKEN=<Gemini key>``
+     * - AWS Bedrock
+         - ``AUDITTRAIL_LLM_PROVIDER=bedrock``, ``AUDITTRAIL_LLM_MODEL=<bedrock model>``, ``AUDITTRAIL_BEDROCK_REGION=<region>``, optional ``AUDITTRAIL_BEDROCK_ACCESS_KEY`` / ``AUDITTRAIL_BEDROCK_SECRET_KEY`` / ``AUDITTRAIL_BEDROCK_SESSION_TOKEN`` (otherwise rely on IAM roles)
+
+Optional knobs shared by all providers:
+
+- ``AUDITTRAIL_LLM_SYSTEM_PROMPT`` – default assistant persona.
+- ``AUDITTRAIL_LLM_MAX_TOKENS`` – cap on generated tokens (default 256).
+- ``AUDITTRAIL_LLM_TEMPERATURE`` / ``AUDITTRAIL_LLM_TOP_P`` – sampling controls.
+
+Gemini/Bedrock requests automatically craft prompts from the structured diff, so
+no manual templating is required. Credentials are always read from environment
+variables to keep secrets out of source control.
+
+.. note::
+
+     For Bedrock, the client automatically maps friendly values like ``nova-lite`` or
+     ``claude-3-haiku`` to their canonical identifiers (for example,
+     ``anthropic.claude-3-haiku-20240307-v1:0``). Supplying the canonical value is
+     still recommended to avoid ambiguity when AWS publishes new versions.
+
+Diff Payload
+------------
+
+Every event stores a ``diff`` dictionary (and a backwards-compatible ``changes``
+alias).  Each entry exposes:
+
+- ``field`` / ``field_type``: The Django field name and its type.
+- ``relation``: ``field``, ``foreign_key``, ``one_to_one``, or ``many_to_many``.
+- ``before`` / ``after``: Scalar deltas, including serialized foreign-key objects
+    (``{"pk": 9, "repr": "Bob"}``).
+- ``added`` / ``removed``: Lists of related objects for many-to-many fields.
+
+This structure feeds both the HTMX timeline and downstream storage/stream consumers,
+ensuring tooltips, summaries, and analytics retain full context.
+
+Actor Resolution
+----------------
+
+``AUDITTRAIL_ACTOR_RESOLVER`` can point to a callable such as
+``auths.middleware.get_current_user``. The helper must accept no arguments and
+return either a dict, string, or user-like object. Its output is normalized into a
+dictionary (``username``, ``email``, ``id`` keys when available) and stored as the
+``actor`` for every audit event when models do not override ``get_audit_context``.
+
+Outbox
+------
+
+- ``AUDITTRAIL_OUTBOX_BATCH_SIZE`` (default 100)
+- ``AUDITTRAIL_OUTBOX_LOCK_TTL`` (default 60s)
+
+Security
+--------
+
+Grant ``audit_trail.view_audit_log`` permission to roles requiring API/UI access.
+
+Sensitive Data Encryption
+-------------------------
+
+- ``AUDITTRAIL_SENSITIVE_KEY`` (required): Symmetric key used to encrypt values for
+    fields listed in ``sensitive`` registrations. Provide a strong, random string (32+
+    chars). If you have an existing Fernet key, you can paste the urlsafe base64 value
+    directly; otherwise any string is SHA-256 derived into a 32-byte AES-256 key.
+- Encrypted diffs expose ``encrypted_before`` / ``encrypted_after`` tokens alongside
+    the masked display value. Use ``audit_trail.utils.sensitive.unmask_change`` to
+    decrypt them when running privileged tooling (for example, SOC investigations).
+
+Example:
+
+.. code-block:: python
+
+     from audit_trail.utils.sensitive import unmask_change
+
+     change = event["diff"]["identity_number"]
+     actual_ssn = unmask_change(change, position="after")
+
+The ciphertext is only intelligible to services that know
+``AUDITTRAIL_SENSITIVE_KEY``; external storage (DynamoDB/S3/Mongo) merely sees the
+masked string plus an opaque encrypted token.
+
+History Retrieval
+-----------------
+
+The long-term history browser ships as ``HistorySearchView`` and lives behind the
+``audit-history-search`` URL name.  The accompanying ``HistorySearchForm`` enforces
+that operators provide an ``object_id`` (with ``app.Model`` label) and/or a
+``user_id`` before a query is executed.  Requests fan out to whichever storage
+backend you configured via ``AUDITTRAIL_STORAGE_BACKEND`` and return normalized
+``HistoryEvent`` objects regardless of whether the data resides in DynamoDB,
+MongoDB, or S3.
+
+- ``object_id + model`` → uses the backend ``fetch_object_events`` paginator.
+- ``user_id`` only → uses ``fetch_user_events``.
+- Supplying both filters narrows the client-side results without a second query.
+
+To expose the UI inside your host project, include the audit URLs and link to
+``reverse("audit-history-search")`` in your navigation shell.
+
+.. code-block:: python
+
+   # config/urls.py
+   from django.urls import include, path
+
+   urlpatterns = [
+       path("audit/", include("audit_trail.ui.urls")),
+   ]
+
+   # templates/nav.html
+   <a href="{% url 'audit-history-search' %}">Historical Search</a>
+
+The same fetch logic can be consumed programmatically via
+``audit_trail.history.service.fetch_history`` when building CLI tools or custom
+APIs.

@@ -1,0 +1,184 @@
+Metadata-Version: 2.4
+Name: tiger_audit_trail
+Version: 0.1.0
+Summary: Enterprise audit trail for Django with diffing and async delivery
+Author-email: AJAY <ajay@tigerlab.com>
+License: MIT
+Keywords: audit,django,compliance,logging
+Requires-Python: >=3.13
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: Django>=5.2
+Requires-Dist: djangorestframework>=3.14
+Requires-Dist: celery>=5.3
+Requires-Dist: boto3>=1.28
+Requires-Dist: confluent-kafka>=2.0
+Requires-Dist: pymongo>=4.4
+Requires-Dist: httpx>=0.24
+Requires-Dist: django-cors-headers>=4.1
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: pytest-django; extra == "dev"
+Requires-Dist: moto; extra == "dev"
+Requires-Dist: ruff; extra == "dev"
+Requires-Dist: black; extra == "dev"
+Requires-Dist: sphinx; extra == "dev"
+Requires-Dist: furo; extra == "dev"
+Requires-Dist: sphinx-autodoc-typehints; extra == "dev"
+Requires-Dist: myst-parser; extra == "dev"
+Requires-Dist: sphinx-copybutton; extra == "dev"
+Requires-Dist: sphinx-rtd-theme; extra == "dev"
+Requires-Dist: sphinx-autobuild; extra == "dev"
+Dynamic: license-file
+
+# tiger_audit_trail
+
+Enterprise-grade audit logging for Django featuring diff capture, transactional outbox delivery, multi-backend storage (DynamoDB/MongoDB/S3), optional Kafka/Kinesis streaming, and HTMX-powered timelines.
+
+## Why Audit Trail?
+- **Transactional safety** – Outbox table lives in the same database transaction as business data.
+- **Async scaling** – Celery workers batch events to downstream stores.
+- **Extensible storage** – Pluggable adapters for DynamoDB, MongoDB, or S3.
+- **Streaming ready** – Toggle Kafka or Kinesis streaming via settings.
+- **Summaries** – Rule-based, NLTK, multilingual, or LLM summaries of diffs.
+
+## Installation
+Add to `requirements.txt`:
+
+```text
+git+https://github.com/your-org/tiger_audit_trail.git@main#egg=tiger_audit_trail
+```
+
+Install dependencies and apply migrations:
+
+```bash
+pip install -r requirements.txt
+python manage.py migrate
+```
+
+## Django Configuration
+```python
+INSTALLED_APPS = [
+    # ...
+    "audit_trail",
+]
+
+AUDITTRAIL_STORAGE_BACKEND = "audit_trail.storage.backends.dynamo.DynamoStorageBackend"
+AUDITTRAIL_STORAGE_CONFIG = {
+    "table": "audit-events",
+    "region": "us-east-1",
+}
+
+AUDITTRAIL_STREAMING_ENABLED = True
+AUDITTRAIL_STREAM_PROVIDER = "audit_trail.streaming.kafka.KafkaPublisher"
+AUDITTRAIL_STREAM_CONFIG = {
+    "topic": "audit-events",
+    "bootstrap_servers": "broker01:9092,broker02:9092",
+}
+
+AUDITTRAIL_SUMMARIZER = "grammar"  # grammar|nltk|multilang|llm
+```
+
+## Registering Models
+```python
+# myapp/apps.py
+from django.apps import AppConfig
+
+from audit_trail.registry import register_model
+
+
+class MyAppConfig(AppConfig):
+    def ready(self):
+        register_model(
+            "policies.Policy",
+            fields=["status", "premium"],
+            sensitive=["ssn"],
+            m2m=["risk_classes"],
+        )
+```
+
+Attach the mixin for context enrichment:
+
+```python
+from audit_trail.diffengine.mixins import AuditableMixin
+
+
+class Policy(AuditableMixin, models.Model):
+    status = models.CharField(max_length=32)
+
+    def get_audit_context(self):
+        return {"actor": self.updated_by.username}
+```
+
+## Kafka Example (README)
+```python
+AUDITTRAIL_STREAMING_ENABLED = True
+AUDITTRAIL_STREAM_PROVIDER = "audit_trail.streaming.kafka.KafkaPublisher"
+AUDITTRAIL_STREAM_CONFIG = {
+    "topic": "audit-events",
+    "bootstrap_servers": "broker:9092",
+    "security.protocol": "SASL_SSL",
+    "sasl.mechanisms": "PLAIN",
+}
+```
+
+Consumer snippet:
+
+```python
+from confluent_kafka import Consumer
+
+consumer = Consumer({"bootstrap.servers": "broker:9092", "group.id": "audit"})
+consumer.subscribe(["audit-events"])
+while True:
+    msg = consumer.poll(1.0)
+    if msg is None:
+        continue
+    event = json.loads(msg.value())
+    print(event["summary"])
+```
+
+## Kinesis Example (README)
+```python
+AUDITTRAIL_STREAMING_ENABLED = True
+AUDITTRAIL_STREAM_PROVIDER = "audit_trail.streaming.kinesis.KinesisPublisher"
+AUDITTRAIL_STREAM_CONFIG = {
+    "stream": "audit-stream",
+    "region": "us-east-1",
+}
+```
+
+IAM policy snippet:
+
+```json
+{
+  "Effect": "Allow",
+  "Action": ["kinesis:PutRecord", "kinesis:DescribeStream"],
+  "Resource": "arn:aws:kinesis:us-east-1:123456789012:stream/audit-stream"
+}
+```
+
+## Operating the Outbox
+- `celery -A project worker -l info` to run async dispatch.
+- `python manage.py audittrail_backfill --batch 500` drains synchronously.
+- `python manage.py audittrail_clean` purges sent entries & releases locks.
+- `python manage.py audittrail_stats` prints counts per status.
+
+## UI
+Include the template tag in your URLs and render `audit_trail/ui/templates/audit_trail/history.html` to embed the HTMX timeline.
+
+## Documentation
+Full Sphinx docs live under `docs/`. Build via:
+
+```bash
+cd docs
+make html
+```
+
+## Security Considerations
+- **IAM only**: Boto clients rely on environment/instance profiles.
+- **PII masking**: Fields listed in `sensitive` registry entries are hashed via SHA-256 before leaving Postgres.
+- **RBAC**: API viewset enforces `audit_trail.view_audit_log` permission.
+- **Encryption**: S3 adapter forces `AES256`, Kinesis/Kafka links should run over TLS.
+
+## License
+MIT

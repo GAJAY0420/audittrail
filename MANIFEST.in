@@ -1,0 +1,4 @@
+include README.md
+include LICENSE
+recursive-include audit_trail *.py *.html *.css *.js
+recursive-include docs *.rst conf.py Makefile

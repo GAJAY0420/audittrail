@@ -1,0 +1,44 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-theme="navy">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Audit Trail{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}">
+    {% block extra_css %}{% endblock %}
+    <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body hx-boost="true" class="app-body">
+    <header class="app-header">
+        <div class="brand-mark">
+            <span class="brand-logo">AT</span>
+            <div>
+                <p class="brand-title">Audit Trail</p>
+                {% if version %}<p class="brand-version">v{{ version }}</p>{% endif %}
+            </div>
+        </div>
+        <nav class="app-nav">
+            <a href="{% url 'audit-trail-timeline' %}" class="nav-link">Timeline</a>
+        </nav>
+    </header>
+    <main class="app-main">
+        {% if messages %}
+        <div id="messages" class="flash-messages">
+            {% for message in messages %}
+            <div class="flash {{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="app-footer">
+        <p>© {{ version|default:"" }} Tiger Audit Trail · Secure every change.</p>
+    </footer>
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

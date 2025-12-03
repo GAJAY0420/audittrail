@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Audit Timeline{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/audit_timeline.css' %}">
+{% endblock %}
+
+{% block content %}
+<section class="timeline-shell">
+    <header class="timeline-hero">
+        <div>
+            <p class="eyebrow">Live Compliance Feed</p>
+            <h1>Audit History</h1>
+            <p>Stream of record changes across every registered model.</p>
+        </div>
+        <div class="hero-actions">
+            <button class="btn-outline" hx-get="{{ feed_url }}" hx-target="#timeline-feed-content" hx-swap="innerHTML">
+                Refresh
+            </button>
+        </div>
+    </header>
+    <div class="timeline-feed" id="timeline-feed" hx-get="{{ feed_url }}" hx-trigger="load, every 30s"
+        hx-target="#timeline-feed-content" hx-swap="innerHTML">
+        <div id="timeline-feed-content">
+            {% include "audit_trail/components/timeline_feed.html" with events=events %}
+        </div>
+    </div>
+</section>
+{% endblock %}
