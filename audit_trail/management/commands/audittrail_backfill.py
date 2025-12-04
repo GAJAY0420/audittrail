@@ -14,6 +14,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):  # noqa: ANN001
         batch = options["batch"]
+        processed = 0
         if getattr(settings, "AUDITTRAIL_USE_CELERY", False):
             self.stdout.write(
                 self.style.WARNING(
@@ -34,5 +35,4 @@ class Command(BaseCommand):
                     )
                 )
                 processed = _run_dispatch(batch)
-            processed = dispatch_outbox(batch_size=batch)
         self.stdout.write(self.style.SUCCESS(f"Processed {processed} events"))
