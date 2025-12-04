@@ -185,7 +185,7 @@ class AuditLoginView(LoginView):
         return form
 
 
-class AuditTimelineView(LoginRequiredMixin, TemplateView):
+class AuditTimelineView(TemplateView):
     """Secure timeline view that renders the HTMX-powered history page."""
 
     template_name = "audit_trail/history.html"
@@ -199,7 +199,7 @@ class AuditTimelineView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class TimelineFeedView(LoginRequiredMixin, TemplateView):
+class TimelineFeedView(TemplateView):
     """HTMX endpoint that renders the timeline feed cards."""
 
     template_name = "audit_trail/components/timeline_feed.html"
@@ -217,7 +217,7 @@ class TimelineFeedView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class HistorySearchView(LoginRequiredMixin, TemplateView):
+class HistorySearchView(TemplateView):
     """Allow operators to query history from the configured storage backend."""
 
     template_name = "audit_trail/history_search.html"
