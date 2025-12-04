@@ -256,6 +256,21 @@ def _diff(instance, created: bool) -> Dict[str, Dict[str, Any]]:
     return diff
 
 
+def _emit_m2m_event(instance, field_name: str) -> None:
+    """Push a standalone audit event for the provided M2M field if needed."""
+
+    payload = tracker.consume_field(_object_key(instance), field_name)
+    if not payload:
+        return
+    additions = payload.get("add") or set()
+    removals = payload.get("remove") or set()
+    if not additions and not removals:
+        return
+    model_field = _get_model_field(instance, field_name)
+    diff = {field_name: _serialize_m2m_change(field_name, model_field, payload)}
+    _enqueue(instance, diff, event_type="updated")
+
+
 def _build_context(instance) -> Dict[str, Any]:
     context: Dict[str, Any] = {}
     if hasattr(instance, "get_audit_context"):
@@ -398,3 +413,4 @@ def audittrail_m2m(sender, instance, action, reverse, model, pk_set, **kwargs): 
         model=model,
         label=label_source or field_name,
     )
+    _emit_m2m_event(instance, field_name)

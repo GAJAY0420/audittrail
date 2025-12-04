@@ -43,5 +43,16 @@ class M2MTracker:
     def consume(self, obj_key: str) -> Dict[str, Dict[str, object]]:
         return self._pending.pop(obj_key, {})
 
+    def consume_field(self, obj_key: str, field_name: str) -> Dict[str, object]:
+        """Remove and return pending changes for a single field."""
+
+        field_bucket = self._pending.get(obj_key)
+        if not field_bucket:
+            return {}
+        payload = field_bucket.pop(field_name, {})
+        if not field_bucket:
+            self._pending.pop(obj_key, None)
+        return payload
+
 
 tracker = M2MTracker()
